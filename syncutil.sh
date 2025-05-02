@@ -130,7 +130,7 @@ list_rules() {
     if [ ! -s "$CONFIG_FILE" ]; then
         log_info "No synchronization rules defined."
         return 0
-    }
+    fi
     
     echo -e "${BLUE}Synchronization Rules:${NC}"
     echo -e "${BLUE}--------------------${NC}"
