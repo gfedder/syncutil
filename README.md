@@ -3,6 +3,7 @@ File/Folder Synchronization Utility
 
 - Copies files/folders from source to destination
 - Only copies files that have changes
+- Removes files from destination that are not in source
 - Supports dry run, execution, and rule listing
 - Offers quiet/verbose modes
 - Reports when no changes are needed
@@ -16,6 +17,9 @@ File/Folder Synchronization Utility
 
 ## Examples
 ```bash
+# Display help details
+synctuil -h
+
 # Add sync rules
 syncutil add ~/Documents/projects /mnt/backup/projects
 
@@ -27,6 +31,9 @@ syncutil -d sync
 
 # Execution
 syncutil sync
+
+# Execution bypassing confirmation on deletion
+syncutil -f sync
 
 # Quite mode
 syncutil -q sync
