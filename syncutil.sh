@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # File sync utility script
-# Written by gfedder
+# Author: gfedder
 # Version: 1.1.0
 
 # Terminal color codes
@@ -9,25 +9,25 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Default parameters
+# Default settings
 CONFIG_FILE="$HOME/.config/syncutil/rules.conf"
 VERBOSE=true
 DRY_RUN=false
 SHOW_RULES=false
 OPERATION="sync"
-FORCE=false  # New flag to bypass deletion confirmation
+FORCE=false
 
-# Utility functions
+# Helper functions
 print_usage() {
     echo -e "${BLUE}Usage:${NC} $(basename "$0") [options] [command]"
     echo ""
     echo "Commands:"
-    echo "  sync               Start synchronization (default)"
-    echo "  list               Display all sync rules"
-    echo "  add <src> <dest>   Include a new sync rule"
-    echo "  remove <index>     Delete a rule based on index"
+    echo "  sync               Execute the synchronization (default)"
+    echo "  list               Display all synchronization rules"
+    echo "  add <src> <dest>   Add a new synchronizatoin rule"
+    echo "  remove <index>     Remove a rule by its index"
     echo ""
     echo "Options:"
     echo "  -d, --dry-run      Preview without making changes"
@@ -42,7 +42,7 @@ print_usage() {
     echo "  $(basename "$0") -f sync           # Sync with forced deletions"
     echo "  $(basename "$0") list              # Show all rules"
     echo "  $(basename "$0") add ~/docs /backup/docs  # Add a rule"
-    echo "  $(basename "$0") remove 2          # Delete rule at index 2"
+    echo "  $(basename "$0") remove 2          # Remove rule at index 2"
 }
 
 log_info() {
@@ -128,12 +128,12 @@ list_rules() {
     ensure_config_dir
     
     if [ ! -s "$CONFIG_FILE" ]; then
-        log_info "No sync rules defined."
+        log_info "No synchronization rules defined."
         return 0
     }
     
-    echo -e "${BLUE}Sync Rules:${NC}"
-    echo -e "${BLUE}-----------${NC}"
+    echo -e "${BLUE}Synchronization Rules:${NC}"
+    echo -e "${BLUE}--------------------${NC}"
     
     index=0
     while IFS="|" read -r src dest; do
@@ -172,7 +172,7 @@ remove_rule() {
     ensure_config_dir
     
     if [ $# -lt 1 ]; then
-        log_error "Missing rule index"
+        log_error "Missing rule index parameter"
         print_usage
         exit 1
     fi
@@ -320,7 +320,7 @@ sync_all() {
     ensure_config_dir
     
     if [ ! -s "$CONFIG_FILE" ]; then
-        log_info "No sync rules defined."
+        log_info "No synchronization rules defined."
         return 0
     fi
     
