@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-# syncutil.sh - File/Folder Synchronization Utility
+# File sync utility script
 # Author: gfedder
-# Version: 1.0.0
+# Version: 1.1.0
 
-# Color codes for terminal output
+# Terminal color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Default settings
 CONFIG_FILE="$HOME/.config/syncutil/rules.conf"
@@ -17,6 +17,7 @@ VERBOSE=true
 DRY_RUN=false
 SHOW_RULES=false
 OPERATION="sync"
+FORCE=false
 
 # Helper functions
 print_usage() {
@@ -24,21 +25,23 @@ print_usage() {
     echo ""
     echo "Commands:"
     echo "  sync               Execute the synchronization (default)"
-    echo "  list               List all configured sync rules"
-    echo "  add <src> <dest>   Add a new synchronization rule"
+    echo "  list               Display all synchronization rules"
+    echo "  add <src> <dest>   Add a new synchronizatoin rule"
     echo "  remove <index>     Remove a rule by its index"
     echo ""
     echo "Options:"
-    echo "  -d, --dry-run      Show what would be copied without making changes"
-    echo "  -q, --quiet        Suppress all output except errors"
+    echo "  -d, --dry-run      Preview without making changes"
+    echo "  -q, --quiet        Suppress all non-error output"
     echo "  -v, --verbose      Show detailed output (default)"
-    echo "  -h, --help         Show this help message"
+    echo "  -f, --force        Skip deletion confirmation"
+    echo "  -h, --help         Display this help message"
     echo ""
     echo "Examples:"
-    echo "  $(basename "$0") sync              # Run synchronization"
-    echo "  $(basename "$0") -d sync           # Dry run synchronization"
-    echo "  $(basename "$0") list              # List all rules"
-    echo "  $(basename "$0") add ~/docs /backup/docs  # Add a new rule"
+    echo "  $(basename "$0") sync              # Start sync"
+    echo "  $(basename "$0") -d sync           # Preview sync"
+    echo "  $(basename "$0") -f sync           # Sync with forced deletions"
+    echo "  $(basename "$0") list              # Show all rules"
+    echo "  $(basename "$0") add ~/docs /backup/docs  # Add a rule"
     echo "  $(basename "$0") remove 2          # Remove rule at index 2"
 }
 
@@ -58,7 +61,46 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Ensure config directory exists
+# New function: Identify files for deletion
+get_deletions() {
+    src="$1"
+    dest="$2"
+    
+    # Add trailing slashes for directories
+    if [ -d "$src" ]; then
+        src="${src%/}/"
+    fi
+    
+    if [ -d "$dest" ]; then
+        dest="${dest%/}/"
+    fi
+    
+    # Employ rsync to list deletions
+    rsync -ain --delete "$src" "$dest" | grep "^*deleting" | sed 's/^*deleting //'
+}
+
+# New function: Confirm deletions with user
+confirm_deletions() {
+    if [ -z "$1" ]; then
+        return 0  # No deletions, confirmed
+    fi
+    
+    echo -e "${YELLOW}Items to be deleted:${NC}"
+    echo "$1"
+    echo ""
+    
+    read -p "Proceed with deletion? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY]) 
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Ensure existence of config directory
 ensure_config_dir() {
     CONFIG_DIR=$(dirname "$CONFIG_FILE")
     if [ ! -d "$CONFIG_DIR" ]; then
@@ -67,17 +109,17 @@ ensure_config_dir() {
             log_error "Failed to create config directory: $CONFIG_DIR"
             exit 1
         fi
-        log_info "Created config directory: $CONFIG_DIR"
+        log_info "Config directory created: $CONFIG_DIR"
     fi
     
-    # Create config file if it doesn't exist
+    # Create config file if absent
     if [ ! -f "$CONFIG_FILE" ]; then
         touch "$CONFIG_FILE"
         if [ $? -ne 0 ]; then
             log_error "Failed to create config file: $CONFIG_FILE"
             exit 1
         fi
-        log_info "Created config file: $CONFIG_FILE"
+        log_info "Config file created: $CONFIG_FILE"
     fi
 }
 
@@ -88,10 +130,10 @@ list_rules() {
     if [ ! -s "$CONFIG_FILE" ]; then
         log_info "No synchronization rules defined."
         return 0
-    fi
+    }
     
     echo -e "${BLUE}Synchronization Rules:${NC}"
-    echo -e "${BLUE}-------------------${NC}"
+    echo -e "${BLUE}--------------------${NC}"
     
     index=0
     while IFS="|" read -r src dest; do
@@ -114,15 +156,15 @@ add_rule() {
     src="$1"
     dest="$2"
     
-    # Validate source exists
+    # Verify source existence
     if [ ! -e "$src" ]; then
-        log_error "Source does not exist: $src"
+        log_error "Source not found: $src"
         exit 1
     fi
     
-    # Add rule to config file
+    # Include rule in config file
     echo "$src|$dest" >> "$CONFIG_FILE"
-    log_info "Added new sync rule: $src -> $dest"
+    log_info "New sync rule added: $src -> $dest"
 }
 
 # Remove a sync rule
@@ -137,13 +179,13 @@ remove_rule() {
     
     index="$1"
     
-    # Validate index is a number
+    # Confirm index is a number
     if ! [[ "$index" =~ ^[0-9]+$ ]]; then
         log_error "Index must be a number"
         exit 1
     fi
     
-    # Check if file is empty
+    # Check for empty file
     if [ ! -s "$CONFIG_FILE" ]; then
         log_error "No rules to remove"
         exit 1
@@ -152,16 +194,16 @@ remove_rule() {
     # Count lines in config file
     line_count=$(wc -l < "$CONFIG_FILE")
     
-    # Validate index is within range
+    # Validate index range
     if [ "$index" -lt 1 ] || [ "$index" -gt "$line_count" ]; then
         log_error "Index out of range (1-$line_count)"
         exit 1
     fi
     
-    # Create a temporary file
+    # Create temporary file
     temp_file=$(mktemp)
     
-    # Copy all lines except the one to be removed
+    # Copy all lines except the one to remove
     current_line=0
     while IFS= read -r line; do
         current_line=$((current_line + 1))
@@ -173,7 +215,7 @@ remove_rule() {
     # Replace config file with temp file
     mv "$temp_file" "$CONFIG_FILE"
     
-    log_info "Removed rule at index $index"
+    log_info "Rule removed at index $index"
 }
 
 # Execute sync for a single rule
@@ -181,13 +223,13 @@ sync_rule() {
     src="$1"
     dest="$2"
     
-    # Skip if source doesn't exist
+    # Skip if source does not exist
     if [ ! -e "$src" ]; then
-        log_warn "Source does not exist: $src"
+        log_warn "Source not found: $src"
         return 1
     fi
     
-    # Create destination directory if it doesn't exist
+    # Create destination directory if absent
     if [ ! -d "$(dirname "$dest")" ]; then
         if [ "$DRY_RUN" = true ]; then
             log_info "[DRY RUN] Would create directory: $(dirname "$dest")"
@@ -197,17 +239,40 @@ sync_rule() {
                 log_error "Failed to create destination directory: $(dirname "$dest")"
                 return 1
             fi
-            log_info "Created directory: $(dirname "$dest")"
+            log_info "Directory created: $(dirname "$dest")"
+        fi
+    fi
+    
+    # Check for deletions
+    deletions=$(get_deletions "$src" "$dest")
+    
+    # Initialize rsync delete flag
+    rsync_delete_flag="--delete"
+    
+    # Handle deletions based on mode
+    if [ -n "$deletions" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            log_info "[DRY RUN] Items to be deleted:"
+            echo "$deletions"
+            echo ""
+        elif [ "$FORCE" = false ]; then
+            if ! confirm_deletions "$deletions"; then
+                log_info "Deletions skipped by user"
+                rsync_delete_flag=""
+            fi
+        else
+            log_info "Items to be deleted (--force enabled):"
+            echo "$deletions"
+            echo ""
         fi
     fi
     
     # Use rsync to copy files
     if [ "$DRY_RUN" = true ]; then
         if [ "$VERBOSE" = true ]; then
-            rsync -ain --delete "$src" "$dest"
+            rsync -ain $rsync_delete_flag "$src" "$dest"
         else
-            # Capture rsync output to check if changes would be made
-            changes=$(rsync -ain --delete "$src" "$dest" | grep -v "^$" | wc -l)
+            changes=$(rsync -ain $rsync_delete_flag "$src" "$dest" | grep -v "^$" | wc -l)
             if [ "$changes" -gt 0 ]; then
                 log_info "[DRY RUN] Would copy: $src -> $dest"
             else
@@ -216,8 +281,7 @@ sync_rule() {
         fi
     else
         if [ "$VERBOSE" = true ]; then
-            # Use rsync with verbose output
-            rsync_output=$(rsync -ai --delete "$src" "$dest")
+            rsync_output=$(rsync -ai $rsync_delete_flag "$src" "$dest")
             exit_code=$?
             
             if [ $exit_code -ne 0 ]; then
@@ -225,7 +289,6 @@ sync_rule() {
                 return 1
             fi
             
-            # Check if any files were copied
             if [ -n "$rsync_output" ]; then
                 echo "$rsync_output"
                 log_info "Sync completed: $src -> $dest"
@@ -233,8 +296,7 @@ sync_rule() {
                 log_info "No changes needed: $src -> $dest"
             fi
         else
-            # Use rsync with quiet output
-            rsync_output=$(rsync -ai --delete "$src" "$dest" 2>&1)
+            rsync_output=$(rsync -ai $rsync_delete_flag "$src" "$dest" 2>&1)
             exit_code=$?
             
             if [ $exit_code -ne 0 ]; then
@@ -242,7 +304,6 @@ sync_rule() {
                 return 1
             fi
             
-            # Check if any files were copied
             if [ -n "$rsync_output" ]; then
                 log_info "Sync completed: $src -> $dest"
             else
@@ -287,9 +348,9 @@ sync_all() {
     
     # Summary
     if [ "$DRY_RUN" = true ]; then
-        log_info "[DRY RUN] Synchronization completed"
+        log_info "[DRY RUN] Synchronization complete"
     else
-        log_info "Synchronization completed"
+        log_info "Synchronization complete"
     fi
     
     if [ $failure_count -gt 0 ]; then
@@ -334,6 +395,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -v|--verbose)
             VERBOSE=true
+            shift
+            ;;
+        -f|--force)
+            FORCE=true
             shift
             ;;
         -h|--help)
