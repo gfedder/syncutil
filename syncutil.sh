@@ -19,6 +19,8 @@ SHOW_RULES=false
 OPERATION="sync"
 FORCE=false
 
+UPDATE_COUNT=0
+
 # Helper functions
 print_usage() {
     echo -e "${BLUE}Usage:${NC} $(basename "$0") [options] [command]"
@@ -110,6 +112,7 @@ ensure_config_dir() {
             exit 1
         fi
         log_info "Config directory created: $CONFIG_DIR"
+	UPDATE_COUNT=$((UPDATE_COUNT + 1))
     fi
     
     # Create config file if absent
@@ -120,6 +123,7 @@ ensure_config_dir() {
             exit 1
         fi
         log_info "Config file created: $CONFIG_FILE"
+	UPDATE_COUNT=$((UPDATE_COUNT + 1))
     fi
 }
 
@@ -240,6 +244,7 @@ sync_rule() {
                 return 1
             fi
             log_info "Directory created: $(dirname "$dest")"
+	    UPDATE_COUNT=$((UPDATE_COUNT + 1))
         fi
     fi
     
@@ -259,8 +264,16 @@ sync_rule() {
             if ! confirm_deletions "$deletions"; then
                 log_info "Deletions skipped by user"
                 rsync_delete_flag=""
+	    else
+		# Count number of deletions
+		deletion_count=$(echo "$deletions" | wc -l)
+		UPDATE_COUNT=$((UPDATE_COUNT + deletion_count))
             fi
         else
+	    # Count number of deletions
+	    deletion_count=$(echo "$deletions" | wc -l)
+	    UPDATE_COUNT=$((UPDATE_COUNT + deletion_count))
+
             log_info "Items to be deleted (--force enabled):"
             echo "$deletions"
             echo ""
@@ -291,6 +304,9 @@ sync_rule() {
             
             if [ -n "$rsync_output" ]; then
                 echo "$rsync_output"
+		# Count changes by counting non-empty lines in rsync output
+		change_count=$(echo "$rsync_output" | grep -v "^$" | wc -l)
+		UPDATE_COUNT=$((UPDATE_COUNT + change_count))
                 log_info "Sync completed: $src -> $dest"
             else
                 log_info "No changes needed: $src -> $dest"
@@ -305,6 +321,9 @@ sync_rule() {
             fi
             
             if [ -n "$rsync_output" ]; then
+		# Count changes by counting non-empty lines in rsync output
+		change_count=$(echo "$rsync_output" | grep -v "^$" | wc -l)
+		UPDATE_COUNT=$((UPDATE_COUNT + change_count))
                 log_info "Sync completed: $src -> $dest"
             else
                 log_info "No changes needed: $src -> $dest"
@@ -358,6 +377,9 @@ sync_all() {
     else
         log_info "All $success_count rules processed successfully"
     fi
+
+    # Report the total number of updates
+    log_info "Total updates: $UPDATE_COUNT"
 }
 
 # Parse command line arguments
@@ -433,5 +455,10 @@ case "$OPERATION" in
         exit 1
         ;;
 esac
+
+# Display final update count for any operation if changes were made
+if [ "$UPDATE_COUNT" -gt 0 ] && [ "$OPERATION" != "sync" ]; then
+    log_info "Total updates: $UPDATE_COUNT"
+fi
 
 exit 0
