@@ -237,6 +237,7 @@ sync_rule() {
     if [ ! -d "$(dirname "$dest")" ]; then
         if [ "$DRY_RUN" = true ]; then
             log_info "[DRY RUN] Would create directory: $(dirname "$dest")"
+	    UPDATE_COUNT=$((UPDATE_COUNT + 1))
         else
             mkdir -p "$(dirname "$dest")"
             if [ $? -ne 0 ]; then
@@ -258,6 +259,7 @@ sync_rule() {
     if [ -n "$deletions" ]; then
         if [ "$DRY_RUN" = true ]; then
             log_info "[DRY RUN] Items to be deleted:"
+	    # TODO: figure out how to add to UPDATE_COUNT
             echo "$deletions"
             echo ""
         elif [ "$FORCE" = false ]; then
