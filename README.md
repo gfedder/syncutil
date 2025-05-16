@@ -47,3 +47,4 @@ syncutil remove 1
 ## TODO
 - option to configure your own rules.conf location
 - edit rules
+- full paths
