@@ -14,6 +14,7 @@ File/Folder Synchronization Utility
 ## Setup
 1. Save `syncutil.sh` in a directory in your PATH
 2. Make it executable `chmod +x ~/bin/syncutil.sh`
+> rules.conf is created at ```~/.config/syncutil/rules.conf```
 
 ## Examples
 ```bash
@@ -42,3 +43,7 @@ syncutil -q sync
 syncutil remove 1
 
 ```
+
+## TODO
+- option to configure your own rules.conf location
+- edit rules
