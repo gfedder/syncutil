@@ -9,6 +9,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;96m'
 NC='\033[0m'
 
 # Default settings
@@ -142,8 +143,8 @@ list_rules() {
     index=0
     while IFS="|" read -r src dest; do
         index=$((index + 1))
-        echo -e "${BLUE}$index.${NC} Source: $src"
-        echo -e "   Destination: $dest"
+        echo -e "${BLUE}$index.${NC} ${CYAN}Source: $src${NC}"
+        echo -e "    Destination: $dest"
     done < "$CONFIG_FILE"
 }
 
@@ -354,9 +355,9 @@ sync_all() {
     # Process each rule
     while IFS="|" read -r src dest; do
         if [ "$DRY_RUN" = true ]; then
-            log_info "[DRY RUN] Processing: $src -> $dest"
+            log_info "[DRY RUN] ${CYAN}Processing: $src${NC} -> $dest"
         else
-            log_info "Processing: $src -> $dest"
+            log_info "${CYAN}Processing: $src${NC} -> $dest"
         fi
         
         # Execute sync
