@@ -8,8 +8,9 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;34m'
 CYAN='\033[0;96m'
+GRAY='\033[0;36m'
 NC='\033[0m'
 
 # Default settings
@@ -25,6 +26,8 @@ UPDATE_COUNT=0
 # Helper functions
 print_usage() {
     echo -e "${BLUE}Usage:${NC} $(basename "$0") [options] [command]"
+    echo ""
+    echo -e "${GRAY}Rules can be found: ${CONFIG_FILE}${NC}"
     echo ""
     echo "Commands:"
     echo "  sync               Execute the synchronization (default)"
@@ -138,7 +141,7 @@ list_rules() {
     fi
     
     echo -e "${BLUE}Synchronization Rules:${NC}"
-    echo -e "${BLUE}--------------------${NC}"
+    echo -e "${BLUE}----------------------${NC}"
     
     index=0
     while IFS="|" read -r src dest; do
