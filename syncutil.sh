@@ -10,7 +10,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[1;34m'
 CYAN='\033[0;96m'
-GRAY='\033[0;36m'
+GRAY='\033[1;37m'
 NC='\033[0m'
 
 # Default settings
@@ -140,9 +140,16 @@ list_rules() {
         return 0
     fi
     
-    echo -e "${BLUE}Synchronization Rules:${NC}"
-    echo -e "${BLUE}----------------------${NC}"
+    #echo -e "${BLUE}Synchronization Rules(${GRAY}${CONFIG_FILE}${BLUE}):${NC}"
+    #echo -e "${BLUE}----------------------${NC}"
     
+    list_header="${BLUE}Synchronization Rules (${GRAY}${CONFIG_FILE}${BLUE}):${NC}"
+    header_len=$(echo -e "$list_header" | sed 's/\x1b\[[0-9;]*m//g' | wc -c)
+    header_len=$((header_len - 1))
+
+    echo -e "$list_header"
+    printf "${BLUE}%*s${NC}\n" "$header_len" | tr ' ' '-'
+
     index=0
     while IFS="|" read -r src dest; do
         index=$((index + 1))
